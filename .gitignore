@@ -1,6 +1,7 @@
 service_credentials.json
 .env
 env
+__pycache__/
 
 # ninnja254s personal gitignores
 notes.md
