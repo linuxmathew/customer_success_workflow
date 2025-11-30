@@ -18,7 +18,7 @@ TRELLO_TOKEN = os.getenv("TRELLO_TOKEN")
 print("LIST_ID =", LIST_ID)
 
 
-def create_trello_ticket(title: str, description: str):
+def create_trello_ticket(title: str, description: str) -> str:
     """
     Creates a Trello ticket in the given list.
     """
@@ -36,12 +36,9 @@ def create_trello_ticket(title: str, description: str):
         data = r.json()
         card_id = data.get("id")
         card_url = data.get("url")
-        return {
-            "result": f"Created Trello card: {card_id} — {card_url}",
-            "success": True,
-        }
+        return f"Created Trello card: {card_id} — {card_url}"
     except Exception:
-        return {"result": f"Error: {r.status_code} — {r.text}", "success": False}
+        return f"Error: {r.status_code} — {r.text}"
 
 
 create_ticket_tool = FunctionTool(create_trello_ticket)
@@ -51,7 +48,17 @@ retry_config = types.HttpRetryOptions(
     attempts=6, exp_base=2, initial_delay=1, http_status_codes=[429, 500, 503, 504]
 )
 
-escalation_agent = LlmAgent(
+
+class SafeAgent(LlmAgent):
+    async def run_async(self, invocation_context):
+        async for event in super().run_async(invocation_context):
+            # This single line fixes the NoneType crash forever
+            if getattr(event, "content", None) and event.content.parts is None:
+                event.content.parts = []
+            yield event
+
+
+escalation_agent = SafeAgent(
     name="escalation_agent",
     model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
     tools=[create_ticket_tool],
