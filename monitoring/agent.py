@@ -3,19 +3,12 @@ from google.adk.models.google_llm import Gemini
 from google.adk.tools.agent_tool import AgentTool
 from google.genai import types
 
-from escalation.agent import root_agent as escalation_agent
+from messaging.agent import root_agent as messaging_agent
+
+# from escalation.agent import root_agent as escalation_agent
 
 
-retry_config = types.HttpRetryOptions(
-    attempts=6, exp_base=2, initial_delay=1, http_status_codes=[429, 500, 503, 504]
-)
-
-monitoring_agent = Agent(
-    model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
-    name="monitoring_agent",
-    description="Evaluates user inactivity data and delegates follow-up tasks to Messaging or Escalation agents.",
-    tools=[AgentTool(agent=escalation_agent)],
-    instruction="""
+instruction = """
     You are the Monitoring Agent. Your job is to evaluate user inactivity and trigger the appropriate downstream agent.
 
     You will receive input in the format:
@@ -87,7 +80,18 @@ monitoring_agent = Agent(
         - This summary will be used by the Supervisor Agent for logging.
 
     Let's begin the evaluation when user_data is provided.
-""",
+"""
+
+retry_config = types.HttpRetryOptions(
+    attempts=6, exp_base=2, initial_delay=1, http_status_codes=[429, 500, 503, 504]
+)
+
+monitoring_agent = Agent(
+    model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
+    name="monitoring_agent",
+    description="Evaluates user inactivity data and delegates follow-up tasks to Messaging or Escalation agents.",
+    tools=[AgentTool(agent=messaging_agent)],
+    instruction=instruction,
 )
 
 root_agent = monitoring_agent

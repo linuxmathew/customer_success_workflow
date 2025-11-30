@@ -4,28 +4,47 @@ from google.adk.models.google_llm import Gemini
 from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 import requests
+import os
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
-def create_trello_ticket(payload):
-    card_name = payload.get("title")
-    card_desc = payload.get("description")
+LIST_ID = os.getenv("LIST_ID")
+TRELLO_API_KEY = os.getenv("TRELLO_API_KEY")
+TRELLO_TOKEN = os.getenv("TRELLO_TOKEN")
 
+print("LIST_ID =", LIST_ID)
+
+
+def create_trello_ticket(title: str, description: str):
+    """
+    Creates a Trello ticket in the given list.
+    """
     url = "https://api.trello.com/1/cards"
     params = {
-        "idList": "LIST_ID",
-        "key": "TRELLO_API_KEY",
-        "token": "TRELLO_TOKEN",
-        "name": card_name,
-        "desc": card_desc,
+        "idList": LIST_ID,
+        "key": TRELLO_API_KEY,
+        "token": TRELLO_TOKEN,
+        "name": title,
+        "desc": description,
     }
 
     r = requests.post(url, params=params, timeout=10)
-    return r.json()
+    try:
+        data = r.json()
+        card_id = data.get("id")
+        card_url = data.get("url")
+        return {
+            "result": f"Created Trello card: {card_id} — {card_url}",
+            "success": True,
+        }
+    except Exception:
+        return {"result": f"Error: {r.status_code} — {r.text}", "success": False}
 
 
-create_ticket_tool = FunctionTool(
-    create_trello_ticket,
-)
+create_ticket_tool = FunctionTool(create_trello_ticket)
 
 
 retry_config = types.HttpRetryOptions(
@@ -36,10 +55,38 @@ escalation_agent = LlmAgent(
     name="escalation_agent",
     model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
     tools=[create_ticket_tool],
-    # instructions="""
-    # When a user is inactive for 14+ days, create a Trello ticket.
-    # Use the `create_ticket` tool with a title and description.
-    # """,
+    instruction="""
+    You are the Escalation Agent.
+    
+    INPUT FORMAT YOU WILL ALWAYS RECEIVE:
+    {
+        "email": "string",
+        "client_id": "string",
+        "days_inactive": number,
+        "reason": "escalate_14_plus"
+    }
+
+    YOUR TASK:
+    - Create a Trello escalation ticket using the tool: create_trello_ticket
+    with EXACTLY two JSON fields:
+    {
+    "title": "...",
+    "description": "..."
+    }
+
+    - title MUST be a short line like: "🚨 Inactive user: <email>"
+    - description MUST contain:
+    - email
+    - client_id
+    - days_inactive
+    - reason
+
+    DO NOT include extra fields.
+    DO NOT put JSON inside markdown.
+
+    If days_inactive >= 14, you MUST call the tool.
+    Respond ONLY with a tool call.
+    """,
 )
 
 root_agent = escalation_agent
