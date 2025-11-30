@@ -2,6 +2,7 @@ from google.adk.agents.llm_agent import Agent, LlmAgent
 from google.adk.agents import SequentialAgent
 from google.adk.models.google_llm import Gemini
 from google.adk.tools.agent_tool import AgentTool
+from google.adk.tools.function_tool import FunctionTool
 from google.genai import types
 
 from dotenv import load_dotenv
@@ -9,6 +10,7 @@ from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from pathlib import Path
 import os
+from datetime import date
 
 load_dotenv()
 
@@ -51,11 +53,13 @@ def batch_get_values(spreadsheet_id: str, ranges: list[str]) -> dict:
     return {"values": values}
 
 
-# Wrap as ADK FunctionTool (auto-generates schema)
-# sheets_tool = FunctionTool.from_function(
-#     batch_get_values,
-#     description="Fetches tabular data from Google Sheets. Provide spreadsheet_id and a list of ranges (e.g., ['Sheet1!A1:Z']). Returns a 2D array of values.",
-# )
+def get_today() -> str:
+    """
+    Returns today's date in YYYY-MM-DD format (ISO standard).
+    Use this tool whenever you need the current date for calculations.
+    """
+    return date.today().isoformat()  # → "2025-11-30"
+
 
 # agent that fetches google spreadsheet data with mcp
 data_fetching_agent = LlmAgent(
@@ -116,47 +120,77 @@ cleaning_agent = LlmAgent(
     ]
     """,
 )
+instruction_for_later = """
+        You are a data enrichment agent.
+
+        CRITICAL RULE: You do NOT know today's date. You MUST call the `get_today` tool first — it is the only way to get the correct current date.
+
+        Step-by-step process (follow exactly):
+
+        1. Call the `get_today` tool with no arguments.
+        2. Receive the result (a string like "2025-11-30").
+        3. Now process the input data: {cleaned_user_data}
+            For each user in the list:
+            - Parse `last_login` as YYYY-MM-DD date
+            - Compute days_inactive = (today_date - last_login_date).days → integer
+            - Add field: "days_inactive"
+            - Add field: "status" based on days_inactive:
+                    • 0–2 days   → "active"
+                    • 3–6 days   → "warning"
+                    • 7–13 days  → "at-risk"
+                    • ≥14 days   → "escalate"
+
+        Final output: Return ONLY the enriched JSON list. No text, no explanations, no markdown.
+
+        Example:
+        [
+            {
+                "email": "alice@example.com",
+                "last_login": "2025-11-29",
+                "client_id": "C123",
+                "days_inactive": 1,
+                "status": "active"
+            }
+        ]
+"""
 
 # compute data agent
-compute_agent = Agent(
+compute_agent = LlmAgent(
     name="data_computing_agent",
     model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
     output_key="user_data",
     instruction="""
-        You are a data enrichment agent. Current date is 2025-11-25.
+        You are a data enrichment agent.
 
-        Input: {cleaned_user_data}
+       
 
-        For each user:
-        1. Parse `last_login` as an ISO date (YYYY-MM-DD).
-        2. Compute days_inactive = (today - last_login_date).days  → integer
-        3. Add key: "days_inactive"
-        4. Add key: "status" based on days_inactive:
-        - 0–2 days    → "active"
-        - 3–6 days    → "warning"
-        - 7–13 days   → "at-risk"
-        - ≥14 days    → "escalate"
+        Step-by-step process (follow exactly):
 
-        Return the enriched list exactly as JSON. No explanations.
+        1. Using the value 30-11-2025 as today_date.
+        2. Now process the input data: {cleaned_user_data}
+            For each user in the list:
+            - Parse `last_login` as YYYY-MM-DD date
+            - Compute days_inactive = (today_date - last_login_date).days → integer
+            - Add field: "days_inactive"
+            - Add field: "status" based on days_inactive:
+                    • 0–2 days   → "active"
+                    • 3–6 days   → "warning"
+                    • 7–13 days  → "at-risk"
+                    • ≥14 days   → "escalate"
 
-        Example output:
+        Final output: Return ONLY the enriched JSON list. No text, no explanations, no markdown.
+
+        Example:
         [
-        {
-            "email": "alice@example.com",
-            "last_login": "2025-11-24",
-            "client_id": "C123",
-            "days_inactive": 1,
-            "status": "active"
-        },
-        {
-            "email": "bob@example.com",
-            "last_login": "2025-10-01",
-            "client_id": "C456",
-            "days_inactive": 55,
-            "status": "escalate"
-        }
+            {
+                "email": "alice@example.com",
+                "last_login": "2025-11-29",
+                "client_id": "C123",
+                "days_inactive": 1,
+                "status": "active"
+            }
         ]
-        """,
+""".strip(),
 )
 
 pipeline = SequentialAgent(
