@@ -5,7 +5,7 @@ from google.genai import types
 
 from messaging.agent import root_agent as messaging_agent
 
-# from escalation.agent import root_agent as escalation_agent
+from escalation.agent import root_agent as escalation_agent
 
 
 instruction = """
@@ -90,7 +90,7 @@ monitoring_agent = Agent(
     model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
     name="monitoring_agent",
     description="Evaluates user inactivity data and delegates follow-up tasks to Messaging or Escalation agents.",
-    tools=[AgentTool(agent=messaging_agent)],
+    tools=[AgentTool(agent=messaging_agent), AgentTool(agent=escalation_agent)],
     instruction=instruction,
 )
 
