@@ -1,3 +1,5 @@
+<img width="1185" height="642" alt="image" src="https://github.com/user-attachments/assets/04c42631-c62a-46ac-b883-94a72c6619a6" />
+
 # 🧠 Multi-Agent Customer Engagement Automation System
 
 A fully modular, autonomous 5-agent system designed to monitor user activity, send targeted communication, escalate at-risk accounts, and provide full workflow observability.
