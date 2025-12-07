@@ -15,12 +15,6 @@ from datetime import date
 load_dotenv()
 
 
-# === Environment & Credentials ===
-GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-
-if not GOOGLE_PROJECT_ID or not GOOGLE_APPLICATION_CREDENTIALS:
-    raise ValueError("Missing required Google credentials in .env")
 # FLOW
 # fetch_data_agent - cleaning_agent -> compute_agent
 
@@ -166,7 +160,7 @@ compute_agent = LlmAgent(
 
         Step-by-step process (follow exactly):
 
-        1. Using the value 30-11-2025 as today_date.
+        1. Using the value 2025-12-01 in the format YYYY-MM-DD as today_date.
         2. Now process the input data: {cleaned_user_data}
             For each user in the list:
             - Parse `last_login` as YYYY-MM-DD date
