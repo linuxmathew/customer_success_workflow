@@ -128,30 +128,3 @@ Example Response:
   ]
 }
 ```
-
-# 🛠️ Installation & Setup
-
-Before running the Data Agent, you must configure your environment and authentication files.
-Follow the steps below to ensure the agent can securely access your spreadsheet data source.
-
-Create a .env File
-
-In the root directory of the project, create a file named .env and add the following environment variables:
-
-```
-GOOGLE_API_KEY=
-GOOGLE_PROJECT_ID=
-GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/service_credentials.json
-```
-
-Descriptions:
-
-YOUR_SPREADSHEET_ID — The ID of the spreadsheet the agent will read from
-
-GOOGLE_API_KEY — Your Google API key
-
-GOOGLE_PROJECT_ID — Your Google Cloud project ID
-
-GOOGLE_APPLICATION_CREDENTIALS — The full absolute path to your service account JSON file
-
-⚠️ Do not commit the .env file. Add it to .gitignore if not already included.

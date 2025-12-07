@@ -15,12 +15,6 @@ from datetime import date
 load_dotenv()
 
 
-# === Environment & Credentials ===
-GOOGLE_PROJECT_ID = os.getenv("GOOGLE_PROJECT_ID")
-GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-
-if not GOOGLE_PROJECT_ID or not GOOGLE_APPLICATION_CREDENTIALS:
-    raise ValueError("Missing required Google credentials in .env")
 # FLOW
 # fetch_data_agent - cleaning_agent -> compute_agent
 

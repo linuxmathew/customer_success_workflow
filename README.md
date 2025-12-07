@@ -1,7 +1,6 @@
-
 # 🧠 Multi-Agent Customer Engagement Automation System
 
-<img width="1185" height="642" alt="image" src="https://github.com/user-attachments/assets/04c42631-c62a-46ac-b883-94a72c6619a6" />
+![customer_success_workflow](./workflow_agent.webp)
 
 A fully modular, autonomous 5-agent system designed to monitor user activity, send targeted communication, escalate at-risk accounts, and provide full workflow observability.
 Each agent is isolated in its own folder with clear responsibilities, allowing the system to scale, evolve, and adapt with minimal coupling.
@@ -35,7 +34,6 @@ Supervisor Agent → Data Agent → Monitoring Agent → (Messaging Agent OR Esc
 Role:
 The agent pipeline starts here. ie. triggering the overall customer success workflow, which could happen, say, once every 24 hours triggers the supervisor agent, then:
 Supervisor Agent → Data Agent → Monitoring Agent → (Messaging Agent OR Escalation Agent)
-
 
 ### 🔷 2. Data Agent (Input Normalization)
 
@@ -80,10 +78,10 @@ Produce structured next_step and handoff_agent instructions
 
 Example Output:
 {
-  "email": "jane@example.com",
-  "days_inactive": 7,
-  "next_step": "send_help_message",
-  "handoff_agent": "messaging_agent"
+"email": "jane@example.com",
+"days_inactive": 7,
+"next_step": "send_help_message",
+"handoff_agent": "messaging_agent"
 }
 
 ### 🔷 4. Messaging Agent (3-Day & 7-Day Email Delivery)
@@ -95,7 +93,7 @@ Behaviors:
 
 Compose personalized reminder emails
 
-Send them  to the user using [brevo](https://app.brevo.com/)'s [api](https://developers.brevo.com/docs/send-a-transactional-email) 
+Send them to the user using [brevo](https://app.brevo.com/)'s [api](https://developers.brevo.com/docs/send-a-transactional-email)
 
 ### 🔷 5. Escalation Agent (14-Day+ CS Workflows)
 
@@ -104,12 +102,9 @@ Handles long-duration inactivity (14+ days) and generates internal Customer Succ
 
 Responsibilities:
 
-
 Assign risk level (low, medium, high)
 
 Create internal escalation tickets. These are added to an internal trello board
-
-
 
 ## Workflow Summary
 
