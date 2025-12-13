@@ -58,14 +58,14 @@ def get_today() -> str:
 # agent that fetches google spreadsheet data with mcp
 data_fetching_agent = LlmAgent(
     name="data_agent",
-    model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
+    model=Gemini(model="gemini-2.5-flash", retry_options=retry_config),
     output_key="raw_user_data",
-    tools=[batch_get_values],
+    tools=[FunctionTool(batch_get_values)],
     instruction=""" 
     You are a precise data retrieval agent. Your only job is to fetch tabular data from the connected Google Spreadsheet.
     
     Rules:
-    - Use the `sheets_batch_get_values` tool.
+    - Use the `batch_get_values` tool.
     - Always include the header row in your range (e.g., "Sheet1!A1:Z").
     - If the user doesn't specify a range, ask once for the exact range (e.g., spreadsheet ID + sheet name + range).
     - Convert the 2D array result into a clean list of dictionaries:
@@ -87,7 +87,7 @@ data_fetching_agent = LlmAgent(
 #  data cleaning agent - takes the output of fetch_data_agent and clean it
 cleaning_agent = LlmAgent(
     name="data_cleaning_agent",
-    model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
+    model=Gemini(model="gemini-2.5-flash", retry_options=retry_config),
     output_key="cleaned_user_data",
     instruction="""
     You are a strict data cleaning agent.
@@ -114,82 +114,55 @@ cleaning_agent = LlmAgent(
     ]
     """,
 )
-instruction_for_later = """
-        You are a data enrichment agent.
 
-        CRITICAL RULE: You do NOT know today's date. You MUST call the `get_today` tool first — it is the only way to get the correct current date.
-
-        Step-by-step process (follow exactly):
-
-        1. Call the `get_today` tool with no arguments.
-        2. Receive the result (a string like "2025-11-30").
-        3. Now process the input data: {cleaned_user_data}
-            For each user in the list:
-            - Parse `last_login` as YYYY-MM-DD date
-            - Compute days_inactive = (today_date - last_login_date).days → integer
-            - Add field: "days_inactive"
-            - Add field: "status" based on days_inactive:
-                    • 0–2 days   → "active"
-                    • 3–6 days   → "warning"
-                    • 7–13 days  → "at-risk"
-                    • ≥14 days   → "escalate"
-
-        Final output: Return ONLY the enriched JSON list. No text, no explanations, no markdown.
-
-        Example:
-        [
-            {
-                "email": "alice@example.com",
-                "last_login": "2025-11-29",
-                "client_id": "C123",
-                "days_inactive": 1,
-                "status": "active"
-            }
-        ]
-"""
+date_agent = Agent(
+    name="date_agent",
+    model=Gemini(model="gemini-2.5-flash", retry_options=retry_config),
+    output_key="current_date",
+    tools=[get_today],
+    instruction="""Your only job is to call the `get_today` tool and return its result. Do not do anything else. Do not add explanations.""",
+)
 
 # compute data agent
 compute_agent = LlmAgent(
     name="data_computing_agent",
-    model=Gemini(model="gemini-2.5-flash-lite", retry_options=retry_config),
+    model=Gemini(model="gemini-2.5-flash", retry_options=retry_config),
     output_key="user_data",
     instruction="""
-        You are a data enrichment agent.
+    You are a data enrichment agent.
 
-       
+        Today's date (already confirmed): {current_date}
 
-        Step-by-step process (follow exactly):
+        Input data: {cleaned_user_data}
+    - Process the input data: {cleaned_user_data}
+    - For each user in the list:
+        - Parse `last_login` as YYYY-MM-DD date.
+        - Compute days_inactive = (today_date - last_login_date).days → integer.
+        - Add field: "days_inactive".
+        - Add field: "status" based on days_inactive:
+        • 0–2 days   → "active"
+        • 3–6 days   → "warning"
+        • 7–13 days  → "at-risk"
+        • ≥14 days   → "escalate"
 
-        1. Using the value 2025-12-01 in the format YYYY-MM-DD as today_date.
-        2. Now process the input data: {cleaned_user_data}
-            For each user in the list:
-            - Parse `last_login` as YYYY-MM-DD date
-            - Compute days_inactive = (today_date - last_login_date).days → integer
-            - Add field: "days_inactive"
-            - Add field: "status" based on days_inactive:
-                    • 0–2 days   → "active"
-                    • 3–6 days   → "warning"
-                    • 7–13 days  → "at-risk"
-                    • ≥14 days   → "escalate"
+    Final output: Return ONLY the enriched JSON list. No text, no explanations, no markdown.
 
-        Final output: Return ONLY the enriched JSON list. No text, no explanations, no markdown.
-
-        Example:
-        [
-            {
-                "email": "alice@example.com",
-                "last_login": "2025-11-29",
-                "client_id": "C123",
-                "days_inactive": 1,
-                "status": "active"
-            }
-        ]
-""".strip(),
+    Example:
+    [
+        {
+            "email": "alice@example.com",
+            "last_login": "2025-11-29",
+            "client_id": "C123",
+            "days_inactive": 1,
+            "status": "active"
+        }
+    ]
+    """,
 )
 
 pipeline = SequentialAgent(
     name="data_agent",
-    sub_agents=[data_fetching_agent, cleaning_agent, compute_agent],
+    sub_agents=[data_fetching_agent, cleaning_agent, date_agent, compute_agent],
 )
 
 root_agent = pipeline
